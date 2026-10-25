@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Quizzard Scorecard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Read-only monthly scorecard. The view key travels in the URL fragment (never sent to the
+     server in a request line) and goes to the API in the X-View-Key header. */
+  :root { --bg: #f3efe6; --card: #fffdf8; --ink: #1f1a2e; --muted: #6f6a7d; --line: #e6dfd0; --gold: #c99a1c; --gold-bg: #fff3cc; --plum: #5b3fd6; --plum-bg: #eee9ff; --rose: #c24b5a; --rose-bg: #fde8ea; --mint: #1f8a5c; --mint-bg: #e2f5ec; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #14121c; --card: #1d1a28; --ink: #f1edf9; --muted: #a39db3; --line: #2e2a3d; --gold: #e9bf4a; --gold-bg: #3a3017; --plum: #a893ff; --plum-bg: #2a2445; --rose: #f08391; --rose-bg: #3d2328; --mint: #5fd29d; --mint-bg: #1b3328; } }
+  :root[data-theme="dark"] { --bg: #14121c; --card: #1d1a28; --ink: #f1edf9; --muted: #a39db3; --line: #2e2a3d; --gold: #e9bf4a; --gold-bg: #3a3017; --plum: #a893ff; --plum-bg: #2a2445; --rose: #f08391; --rose-bg: #3d2328; --mint: #5fd29d; --mint-bg: #1b3328; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: Inter, system-ui, sans-serif; min-height: 100vh; padding: 32px 16px; }
+  .card { max-width: 520px; margin: 0 auto; background: var(--card); border: 1px solid var(--line); border-radius: 28px; padding: 30px 26px 26px; box-shadow: 0 24px 60px #1f1a2e14; }
+  .eyebrow { font-size: 13px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--plum); }
+  h1 { font-family: Fraunces, Georgia, serif; font-weight: 800; font-size: 40px; line-height: 1.05; margin: 6px 0 4px; }
+  .sub { color: var(--muted); font-size: 15px; }
+  .crown { margin: 24px 0 18px; background: var(--gold-bg); border-radius: 20px; padding: 18px; display: flex; gap: 14px; align-items: center; }
+  .crown .ic { font-size: 40px; line-height: 1; }
+  .crown .lbl { font-size: 13px; font-weight: 600; color: var(--gold); letter-spacing: .06em; text-transform: uppercase; }
+  .crown .nm { font-family: Fraunces, Georgia, serif; font-size: 28px; font-weight: 800; }
+  ol { list-style: none; display: grid; gap: 8px; }
+  li { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--line); }
+  li .r { font-weight: 700; color: var(--muted); text-align: center; }
+  li .n { font-weight: 600; font-size: 17px; }
+  li .meta { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  li .p { font-weight: 700; font-size: 18px; font-variant-numeric: tabular-nums; }
+  li.first { border-color: var(--gold); }
+  li.last { background: var(--rose-bg); border-color: transparent; }
+  .facts { display: grid; gap: 8px; margin-top: 16px; }
+  .fact { border-radius: 16px; padding: 12px 14px; font-size: 15px; display: flex; gap: 10px; align-items: baseline; }
+  .fact.treat { background: var(--rose-bg); color: var(--rose); font-weight: 600; }
+  .fact.up { background: var(--mint-bg); color: var(--mint); font-weight: 600; }
+  .fact.best { background: var(--plum-bg); color: var(--plum); font-weight: 600; }
+  .empty, .err { margin-top: 24px; color: var(--muted); font-size: 16px; line-height: 1.5; }
+  .foot { margin-top: 22px; font-size: 12px; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+  <main class="card" id="card">
+    <div class="eyebrow">Quizzard scorecard</div>
+    <h1 id="title">Loading…</h1>
+    <div class="sub" id="sub"></div>
+    <div id="body"></div>
+    <div class="foot">Points: 10 per right answer, up to +5 for speed, +2 per answer in a streak.</div>
+  </main>
+<script>
+  var h = new URLSearchParams(location.hash.slice(1));
+  var code = (h.get('c') || '').toUpperCase(), key = h.get('v') || '', month = h.get('m') || '';
+  var el = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function list(names) { return names.length < 3 ? names.join(' and ') : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1]; }
+  function fail(msg) { el('title').textContent = 'Scorecard'; el('body').innerHTML = '<p class="err">' + esc(msg) + '</p>'; }
+
+  if (!/^[A-Z2-9]{6}$/.test(code) || !/^[A-Za-z0-9]{16,128}$/.test(key)) fail('This link is incomplete. Ask Cubbie for a fresh scorecard link.');
+  else fetch('/api/groups/' + code + '/scorecard' + (month ? '?month=' + encodeURIComponent(month) : ''), { headers: { 'X-View-Key': key } })
+    .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || 'Could not load the scorecard.'); return j; }); })
+    .then(function (c) {
+      el('title').textContent = c.label;
+      el('sub').textContent = c.group + ' · ' + c.rounds + (c.rounds === 1 ? ' round' : ' rounds');
+      if (!c.rounds) { el('body').innerHTML = '<p class="empty">No rounds yet this month. Type @test in the group chat to start one.</p>'; return; }
+      var out = '';
+      if (c.mvp) out += '<div class="crown"><div class="ic">👑</div><div><div class="lbl">Quizzard of the month</div><div class="nm">' + esc(list(c.mvp)) + '</div></div></div>';
+      var lastSet = c.last ? c.last.names : [];
+      out += '<ol>' + c.standings.map(function (s) {
+        var meta = [s.played + ' played'];
+        if (s.wins) meta.push(s.wins + (s.wins === 1 ? ' win' : ' wins'));
+        if (s.dq) meta.push(s.dq + ' DQ');
+        if (s.excused) meta.push(s.excused + ' excused');
+        var cls = s.rank === 1 && s.points > 0 ? 'first' : lastSet.indexOf(s.name) >= 0 ? 'last' : '';
+        return '<li class="' + cls + '"><span class="r">' + s.rank + '</span><span><div class="n">' + esc(s.name) + '</div><div class="meta">' + esc(meta.join(' · ')) + '</div></span><span class="p">' + s.points + '</span></li>';
+      }).join('') + '</ol><div class="facts">';
+      if (c.last) out += '<div class="fact treat">🧋 ' + esc(list(c.last.names)) + (c.last.tie ? ' split the treat' : ' treats the group') + (c.last.budget ? ', up to $' + c.last.budget : '') + '</div>';
+      if (c.most_improved) out += '<div class="fact up">📈 Most improved: ' + esc(c.most_improved.name) + ' (+' + c.most_improved.per_round_gain + ' pts a round)</div>';
+      if (c.best_round) out += '<div class="fact best">⚡ Best round: ' + esc(c.best_round.name) + ', ' + c.best_round.points + ' pts on ' + esc(c.best_round.topic) + '</div>';
+      el('body').innerHTML = out + '</div>';
+    })
+    .catch(function (e) { fail(e.message); });
+</script>
+</body>
+</html>
