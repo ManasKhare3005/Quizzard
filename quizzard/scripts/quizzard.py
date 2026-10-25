@@ -22,7 +22,7 @@ from datetime import datetime, timedelta, timezone
 from http.client import HTTPException
 from pathlib import Path
 
-DEFAULT_SERVER = "https://quizzard-cubbie.vercel.app"
+DEFAULT_SERVER = "https://quizzard-cubbie.netlify.app"
 LETTERS = "ABCD"
 
 

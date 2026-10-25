@@ -21,7 +21,7 @@ Do not use it to do graded work. Never quiz on the questions of an assignment, q
 
 ## How it talks to the Quizzard server
 
-The script sends quiz data to the Quizzard server at quizzard-cubbie.vercel.app over HTTPS: the group name, each player's display name, the quiz topic, course code and time, the questions Cubbie wrote, and each player's answers with their timestamps. Nothing else is sent: never grades, Canvas content beyond the short questions Cubbie wrote, messages from the chat, phone numbers or calendars. The server hides the questions until the quiz starts and the answers until it ends.
+The script sends quiz data to the Quizzard server at quizzard-cubbie.netlify.app over HTTPS: the group name, each player's display name, the quiz topic, course code and time, the questions Cubbie wrote, and each player's answers with their timestamps. Nothing else is sent: never grades, Canvas content beyond the short questions Cubbie wrote, messages from the chat, phone numbers or calendars. The server hides the questions until the quiz starts and the answers until it ends.
 
 ## Setup
 
