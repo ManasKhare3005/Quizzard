@@ -1,5 +1,9 @@
 # 🧙 Quizzard
 
+> **Type `@test` in your group chat and Cubbie turns your next exam into a quiz battle, where last place buys the boba.**
+
+Live: [quizzard-cubbie.netlify.app](https://quizzard-cubbie.netlify.app)
+
 **Study or pay.** Quizzard turns your group chat into a quiz battle. Type `@test`, Cubbie writes a quick quiz from your class's real course materials, the group votes on a time, everyone checks in, and points add up all month. At the end of the month Cubbie posts a scorecard, crowns the Quizzard of the month, and last place treats the group.
 
 Built for the [Cubbie Hackathon](https://hackathon.cubbie.ai), Track 3 (Group Chat Assistant). It runs on Cubbie as a Cubbie Skill and works in any group chat Cubbie is in, including groups that mix iMessage and Android (SMS/RCS).
