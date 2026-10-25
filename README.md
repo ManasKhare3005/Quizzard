@@ -41,7 +41,7 @@ Sam treats the group, up to $25 🧋
 | --- | --- |
 | `quizzard/SKILL.md` | The Cubbie Skill: what Cubbie does at each step, in plain words |
 | `quizzard/scripts/quizzard.py` | Stdlib-only client the Skill runs (state in `~/.config/quizzard`, mode 600) |
-| `relay/` | Vercel + MongoDB relay: groups, quizzes, check-ins, scoring, monthly scorecard |
+| `relay/` | Netlify or Vercel + MongoDB relay: groups, quizzes, check-ins, scoring, monthly scorecard |
 | `relay/public/scorecard.html` | The read-only monthly scorecard card |
 | `relay/test/` | End-to-end relay tests on an in-memory store with a fake clock |
 
@@ -64,7 +64,12 @@ npm test                 # 6 end-to-end tests, no database needed
 node dev-server.mjs      # local relay on http://localhost:8787 (in-memory)
 ```
 
-Deploy `relay/` to Vercel with `MONGODB_URI` set (and optionally `MONGODB_DB`, default `quizzard`). Point the Skill at another relay with `QUIZZARD_SERVER=https://...`.
+Deploy `relay/` with `MONGODB_URI` set (and optionally `MONGODB_DB`, default `quizzard`):
+
+- **Netlify:** import the repo, set **Base directory** to `relay` (build command empty, `netlify.toml` sets the rest), add `MONGODB_URI` under Environment variables. `/api/*` runs `netlify/functions/api.mjs`.
+- **Vercel:** import the repo, set **Root Directory** to `relay`, add `MONGODB_URI`.
+
+In MongoDB Atlas, allow `0.0.0.0/0` under Network Access (serverless hosts have no fixed IPs). Point the Skill at your relay with `QUIZZARD_SERVER=https://...`, or change `DEFAULT_SERVER` in `quizzard/scripts/quizzard.py`.
 
 ## Privacy
 

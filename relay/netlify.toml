@@ -1,0 +1,8 @@
+# Netlify: set the site's base directory to `relay` and add MONGODB_URI in Site settings.
+[build]
+  publish = "public"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  external_node_modules = ["mongodb"]
