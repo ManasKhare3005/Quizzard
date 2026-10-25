@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Quizzard Reel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  /* 9:16 reel, 540x960 CSS px (captured at 2x = 1080x1920). Every frame is a pure function
+     of time: window.seek(t) rebuilds the stage, so capture is deterministic. */
+  :root { --ink: #f5f5f7; --muted: #8e8e93; --bg: #000; --bubble: #26252a; --blue: #0a84ff; --green: #30d158; --plum: #a78bfa; --cub: #2c2547; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 540px; height: 960px; background: #000; overflow: hidden; }
+  body { font-family: Inter, -apple-system, "Segoe UI", sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+  #stage { position: absolute; inset: 0; overflow: hidden; }
+  .scene { position: absolute; inset: 0; }
+
+  /* kinetic type */
+  .kin { position: absolute; left: 30px; right: 30px; top: 108px; }
+  .kin .ln { font-weight: 800; font-size: 50px; line-height: 1.04; letter-spacing: -0.035em; }
+  .kin .ln.acc { color: var(--plum); }
+  .eyebrow { font-size: 10.5px; font-weight: 600; letter-spacing: .14em; color: #6e6e73; text-transform: uppercase; margin-bottom: 14px; }
+
+  /* lock screen */
+  .lock { position: absolute; inset: 0; background: radial-gradient(120% 70% at 50% 0%, #2a2150 0%, #120f22 45%, #050507 100%); }
+  .lock .date { position: absolute; top: 62px; width: 100%; text-align: center; font-size: 19px; font-weight: 600; color: #e9e6f5; }
+  .lock .clock { position: absolute; top: 82px; width: 100%; text-align: center; font-size: 104px; font-weight: 700; letter-spacing: -0.04em; color: #f2efff; }
+  .notif { position: absolute; left: 14px; right: 14px; top: 252px; background: rgba(60, 56, 80, .62); border-radius: 22px; padding: 13px 15px; display: flex; gap: 11px; backdrop-filter: blur(20px); }
+  .notif .ic { width: 38px; height: 38px; flex: 0 0 38px; border-radius: 10px; }
+  .notif .t { font-size: 14px; font-weight: 600; display: flex; justify-content: space-between; }
+  .notif .t span { color: #b9b4cc; font-weight: 400; font-size: 12px; }
+  .notif .b { font-size: 14px; line-height: 1.32; color: #ece9f5; margin-top: 1px; }
+  .lockbar { position: absolute; bottom: 30px; left: 0; right: 0; display: flex; justify-content: space-between; padding: 0 46px; }
+  .lockbar i { width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,.12); display: block; }
+
+  /* messages */
+  .status { position: absolute; top: 12px; left: 30px; right: 26px; display: flex; justify-content: space-between; font-size: 15px; font-weight: 600; }
+  .status b { letter-spacing: .02em; font-weight: 600; }
+  .sig { display: flex; gap: 5px; align-items: center; }
+  .sig i { display: block; width: 22px; height: 11px; border: 1.5px solid #f5f5f7; border-radius: 3px; position: relative; }
+  .sig i::after { content: ""; position: absolute; inset: 1.5px; right: 5px; background: #f5f5f7; border-radius: 1px; }
+  .chathead { position: absolute; top: 44px; left: 0; right: 0; text-align: center; padding-bottom: 10px; border-bottom: 1px solid #1c1c1e; background: rgba(18,18,20,.94); z-index: 2; }
+  .chathead .avs { display: flex; justify-content: center; }
+  .chathead .av { width: 40px; height: 40px; border-radius: 50%; margin: 0 -5px; border: 2px solid #121214; display: grid; place-items: center; font-weight: 700; font-size: 16px; color: #fff; }
+  .chathead .nm { font-size: 12.5px; margin-top: 4px; color: #e5e5ea; }
+  .chathead .nm small { color: var(--muted); }
+  .chathead .back { position: absolute; left: 14px; top: 10px; font-size: 26px; color: var(--blue); }
+  .sim { position: absolute; top: 4px; right: 12px; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: #5a5a60; }
+  .thread { position: absolute; top: 120px; bottom: 156px; left: 0; right: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 12px; }
+  .wrap { overflow: hidden; flex: 0 0 auto; }
+  .row { display: flex; align-items: flex-end; gap: 7px; padding-top: 5px; }
+  .row.me { justify-content: flex-end; }
+  .mini { width: 26px; height: 26px; flex: 0 0 26px; border-radius: 50%; font-weight: 700; font-size: 11px; display: grid; place-items: center; color: #fff; }
+  .col { max-width: 76%; display: flex; flex-direction: column; }
+  .who { font-size: 10.5px; color: var(--muted); margin: 0 0 2px 11px; }
+  .msg { padding: 8px 13px; border-radius: 19px; font-size: 15.5px; line-height: 1.3; white-space: pre-line; background: var(--bubble); }
+  .cub .msg { background: var(--cub); }
+  .me .msg { background: var(--green); color: #fff; }
+  .dm .me .msg { background: var(--blue); }
+  .msg.big { font-size: 15px; }
+  .chip { text-align: center; font-size: 10.5px; color: var(--muted); padding: 8px 0 2px; font-weight: 600; }
+  .dots { background: var(--cub); border-radius: 19px; padding: 12px 14px; display: flex; gap: 5px; }
+  .dots.grey { background: var(--bubble); }
+  .dots i { width: 7px; height: 7px; border-radius: 50%; background: #8e8e93; display: block; }
+  .input { position: absolute; left: 12px; right: 12px; bottom: 100px; display: flex; gap: 9px; align-items: center; }
+  .input .plus { width: 32px; height: 32px; border-radius: 50%; background: #1c1c1e; color: #8e8e93; display: grid; place-items: center; font-size: 22px; }
+  .input .field { flex: 1; height: 34px; border: 1px solid #2c2c2e; border-radius: 17px; padding: 0 13px; display: flex; align-items: center; font-size: 15px; }
+  .input .field.empty { color: #636366; }
+  .caret { display: inline-block; width: 1.5px; height: 17px; background: var(--blue); margin-left: 1px; }
+
+  /* captions */
+  .cap { position: absolute; left: 22px; right: 22px; bottom: 30px; display: flex; justify-content: center; z-index: 10; }
+  .cap div { background: rgba(28, 28, 30, .92); border-radius: 12px; padding: 9px 14px; font-size: 16px; font-weight: 700; line-height: 1.3; text-align: center; max-width: 100%; }
+  .cap .lit { color: var(--plum); }
+
+  /* watermark */
+  .wm { position: absolute; top: 96px; right: 22px; display: flex; flex-direction: column; align-items: center; gap: 3px; z-index: 11; }
+  .wm svg { width: 22px; height: 22px; }
+  .wm span { font-size: 8.5px; font-weight: 700; letter-spacing: .06em; }
+
+  /* scorecard card */
+  .mini-card { position: absolute; left: 30px; right: 30px; top: 430px; background: #121218; border: 1px solid #2a2836; border-radius: 22px; padding: 16px; }
+  .mc-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 12px; border-radius: 13px; font-size: 16px; font-weight: 600; margin-top: 6px; border: 1px solid #23222c; }
+  .mc-row b { font-variant-numeric: tabular-nums; }
+  .mc-row.gold { border-color: #e9bf4a; }
+  .mc-row.last { background: #3d2328; border-color: transparent; color: #ffb3bd; }
+  .mc-head { font-size: 11px; letter-spacing: .12em; color: #e9bf4a; font-weight: 700; }
+
+  /* end card */
+  .end { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .end h1 { font-size: 58px; font-weight: 900; letter-spacing: -0.04em; margin-top: 18px; }
+  .end .for { font-size: 20px; color: #a1a1a6; margin-top: 2px; }
+  .pill { margin-top: 22px; background: var(--plum); color: #120d24; font-weight: 700; font-size: 16px; padding: 10px 18px; border-radius: 999px; }
+  .foot { position: absolute; bottom: 92px; width: 100%; text-align: center; font-size: 10.5px; color: #5a5a60; }
+  .pov { position: absolute; top: 116px; left: 50%; transform: translateX(-50%); z-index: 3; font-size: 10px; font-weight: 700; letter-spacing: .06em; color: #c7c7cc; background: rgba(44,44,46,.9); padding: 4px 10px; border-radius: 999px; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+  // ---------------- story ----------------
+  // Every time below is relative to its scene's start. Scene lengths come from the narration
+  // durations (window.DURS, injected by render.mjs), so a new voice keeps everything in sync.
+  var PEOPLE = { C: ['Cubbie', '#7c5cff'], M: ['Manav', '#e0793a'], J: ['Jay', '#2b8a6e'], S: ['Sam', '#c2457a'] };
+  var STORY = [
+    { key: 'hook', min: 4.2, vo: 0.3, cap: 'Midterm next week. Our group chat? Memes. Zero studying. So I tried something.' },
+    { key: 'test', min: 6.4, vo: 0.4, cap: 'I typed @test. Cubbie pulled the topics straight from my Canvas, and we voted on a time.',
+      clock: '6:12', before: [['M', 'who\'s studying for 576 😭'], ['J', 'not me lol']], msgs: [
+        [0.7, 'me', '@test'],
+        [1.7, 'C', 'Coming up in your classes:\n1) CSE 576 midterm Nov 3: backprop, CNNs\n2) MAT 343 quiz Oct 30: eigenvalues\nPick one.'],
+        [2.9, 'me', '1, backprop'],
+        [3.7, 'C', 'When?\nA) Thu 8 pm   B) Fri 6 pm'],
+        [4.4, 'J', 'A'],
+        [4.7, 'S', 'A'],
+        [5.0, 'M', 'A 😭'],
+        [5.7, 'C', 'Locked: Backprop, Thu 8 pm 🔒\n5 questions, 10 min.']
+      ] },
+    { key: 'lock', min: 3.0, vo: 0.4, cap: 'Thirty minutes before, everyone got a heads up.' },
+    { key: 'alert', min: 5.0, vo: 0.3, cap: 'Sam, of course, went missing. So Cubbie told the group, and we called him awake.',
+      clock: '7:50', before: [['C', 'Quiz in 30 min: Backprop. Reply ready, or excused if you can\'t make it.'], ['J', 'ready'], ['me', 'ready'], ['M', 'ready']], msgs: [
+        [0.0, '@', 'Thu 7:50 PM'],
+        [0.5, 'C', '🚨 Sam hasn\'t checked in.\nSomeone call him!\nNo check-in by 8:00 = DQ.'],
+        [2.4, 'J', 'SAM 📞📞📞'],
+        [3.0, 'M', 'bro is asleep 💀'],
+        [4.0, 'S', 'READY 😅 i\'m here'],
+        [4.7, 'C', 'Everyone\'s in. See you at 8 🧙']
+      ] },
+    { key: 'dm', min: 4.2, vo: 0.3, cap: 'At eight, the questions came in privately. No copying. Just us versus backprop.', dm: true, clock: '8:00', msgs: [
+        [0.0, '@', 'Thu 8:00 PM · just you and Cubbie'],
+        [0.3, 'C', 'Q1 of 5\nWhy does dropout reduce overfitting?\nA) Units can\'t co-adapt\nB) More training data\nC) Lower learning rate'],
+        [1.9, 'me', 'A'],
+        [2.25, 'C', 'Locked in ✓'],
+        [3.1, 'C', 'Q2 of 5\nReLU\'s gradient for x < 0?\nA) 1   B) 0   C) x']
+      ] },
+    { key: 'results', min: 4.6, vo: 0.3, cap: 'Jay won. But then he explained the one we all missed, and it finally clicked.',
+      clock: '8:11', before: [['S', 'that last one was evil']], msgs: [
+        [0.0, '@', 'Thu 8:11 PM'],
+        [0.3, 'C', '🏁 Backprop round\n🥇 Jay 61\n🥈 Reya 49\n🥉 Manav 38\n4. Sam 26'],
+        [1.6, 'C', 'Most missed: Q3 (2 of 4)\nSigmoid\'s gradient is at most 0.25, so it shrinks layer by layer.\nSource: Lecture 10, slide 9'],
+        [2.9, 'C', 'Jay, explain Q3 to everyone?'],
+        [3.8, 'J', 'say less 🫡']
+      ] },
+    { key: 'boba', min: 5.4, vo: 0.3, cap: 'We kept it going all month. Every quiz, a little less cramming. And last place buys the boba. Sorry, Sam.' },
+    { key: 'win', min: 3.4, vo: 0.3, cap: 'Midterm day? We were actually ready.' },
+    { key: 'end', min: 3.6, vo: 0.4, cap: 'Quizzard, for Cubbie. The fun way to prep for quizzes.' }
+  ];
+
+  // ---------------- layout in time ----------------
+  var DURS = window.DURS || { hook: 4.0, test: 6.3, lock: 2.6, alert: 5.5, dm: 4.5, results: 4.8, boba: 5.8, win: 2.7, end: 2.7 };
+  var t0 = 0;
+  STORY.forEach(function (s) {
+    s.start = t0;
+    s.len = Math.max(s.min, s.vo + DURS[s.key] + 0.45);
+    t0 += s.len;
+  });
+  var DURATION = t0 + 0.3;
+
+  // ---------------- helpers ----------------
+  var clamp = function (x, a, b) { return Math.max(a, Math.min(b, x)); };
+  var ease = function (p) { p = clamp(p, 0, 1); return 1 - Math.pow(1 - p, 3); };
+  var back = function (p) { p = clamp(p, 0, 1); var c = 1.6; return 1 + (c + 1) * Math.pow(p - 1, 3) + c * Math.pow(p - 1, 2); };
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function inAt(t, at, dur) { return ease((t - at) / (dur || 0.28)); }
+  function status(clock) { return '<div class="status"><b>' + clock + '</b><span class="sig">5G <i></i></span></div>'; }
+  var IG = '<svg viewBox="0 0 24 24" fill="none" stroke="#f5f5f7" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1" fill="#f5f5f7" stroke="none"/></svg>';
+
+  function kinetic(t, eyebrow, lines) {
+    var h = '<div class="kin">' + (eyebrow ? '<div class="eyebrow">' + eyebrow + '</div>' : '');
+    lines.forEach(function (l) {
+      var p = inAt(t, l[0], 0.32);
+      if (p <= 0) return;
+      h += '<div class="ln' + (l[2] ? ' acc' : '') + '" style="opacity:' + p + ';transform:translateY(' + (1 - p) * 18 + 'px)' + (l[3] ? ';font-size:' + l[3] + 'px' : '') + '">' + l[1] + '</div>';
+    });
+    return h + '</div>';
+  }
+
+  function bubbleHTML(who, text, dm) {
+    if (who === '@') return '<div class="chip">' + esc(text) + '</div>';
+    if (who === 'me') return '<div class="row me"><div class="col"><div class="msg">' + esc(text) + '</div></div></div>';
+    var p = PEOPLE[who];
+    return '<div class="row' + (who === 'C' ? ' cub' : '') + '"><div class="mini" style="background:' + p[1] + '">' + p[0][0] + '</div><div class="col">' +
+      (dm ? '' : '<div class="who">' + p[0] + '</div>') + '<div class="msg">' + esc(text) + '</div></div></div>';
+  }
+
+  function chat(t, s) {
+    var dm = !!s.dm;
+    var h = '<div class="' + (dm ? 'dm' : '') + '">' + status(s.clock);
+    h += '<div class="chathead"><span class="back">‹</span><span class="sim">simulated demo</span>';
+    if (dm) h += '<div class="avs"><div class="av" style="background:#7c5cff">C</div></div><div class="nm">Cubbie ›</div>';
+    else h += '<div class="avs">' + ['C', 'M', 'J', 'S'].map(function (k) { return '<div class="av" style="background:' + PEOPLE[k][1] + '">' + PEOPLE[k][0][0] + '</div>'; }).join('') + '</div><div class="nm">Night Owls 🦉 <small>· 5 people</small></div>';
+    h += '</div><div class="pov">REYA\'S PHONE</div><div class="thread">';
+    (s.before || []).forEach(function (m) { h += '<div class="wrap">' + bubbleHTML(m[0], m[1], dm) + '</div>'; });
+    var typingWho = null, typed = '';
+    s.msgs.forEach(function (m) {
+      var at = m[0], who = m[1];
+      if (t >= at) {
+        var p = ease((t - at) / 0.3);
+        h += '<div class="wrap" style="max-height:' + (p * 280) + 'px;opacity:' + Math.min(1, p * 1.6) + '">' + bubbleHTML(who, m[2], dm) + '</div>';
+      } else if (who === 'me' && t >= at - 0.62) {
+        typed = m[2].slice(0, Math.ceil(m[2].length * clamp((t - (at - 0.62)) / 0.45, 0, 1)));
+      } else if (who !== '@' && who !== 'me' && t >= at - (who === 'C' ? 0.7 : 0.35)) {
+        typingWho = who;
+      }
+    });
+    if (typingWho) h += '<div class="wrap"><div class="row"><div class="mini" style="background:' + PEOPLE[typingWho][1] + '">' + PEOPLE[typingWho][0][0] + '</div><div class="dots' + (typingWho === 'C' ? '' : ' grey') + '">' +
+      [0, 1, 2].map(function (i) { return '<i style="opacity:' + (0.35 + 0.65 * Math.max(0, Math.sin(t * 8 - i * 0.9))) + '"></i>'; }).join('') + '</div></div></div>';
+    h += '</div><div class="input"><div class="plus">+</div><div class="field' + (typed ? '' : ' empty') + '">' + (typed ? esc(typed) + '<span class="caret"></span>' : (dm ? 'iMessage' : 'Text Message · RCS')) + '</div></div></div>';
+    return h;
+  }
+
+  function caption(T) {
+    for (var i = 0; i < STORY.length; i++) {
+      var s = STORY[i], start = s.start + s.vo, dur = DURS[s.key];
+      if (T < start - 0.05 || T > start + dur + 0.4) continue;
+      var words = s.cap.split(' ');
+      var total = words.reduce(function (a, w) { return a + w.length + 1; }, 0), acc = 0, out = [];
+      for (var k = 0; k < words.length; k++) {
+        var wStart = start + (acc / total) * dur * 0.93;
+        acc += words[k].length + 1;
+        if (T >= wStart) out.push(/^@/.test(words[k]) ? '<span class="lit">' + esc(words[k]) + '</span>' : esc(words[k]));
+      }
+      // keep the pill short: show the last ~9 words spoken
+      if (out.length) return '<div class="cap"><div>' + out.slice(-9).join(' ') + '</div></div>';
+    }
+    return '';
+  }
+
+  // ---------------- scenes (t = seconds since the scene started) ----------------
+  var R = {
+    hook: function (t) {
+      return kinetic(t, '', [[0.2, 'midterm next week.', false, 41], [1.3, 'our group chat:', false, 41], [2.0, 'memes. 💀', true, 41], [2.7, 'zero studying.', false, 41], [3.8, 'so I tried something 👀', false, 26]]);
+    },
+    win: function (t) {
+      return kinetic(t, 'nov 3 · midterm day', [[0.4, 'we were'], [1.2, 'actually', true], [1.6, 'ready.', true], [2.3, '📚 no all-nighter needed', false, 24]]);
+    },
+    test: chat, alert: chat, dm: chat, results: chat,
+    lock: function (t) {
+      var p = back((t - 0.3) / 0.5);
+      return '<div class="lock">' + status('') + '<div class="date">Thursday, October 29</div><div class="clock">7:30</div>' +
+        (t >= 0.3 ? '<div class="notif" style="opacity:' + clamp((t - 0.3) / 0.2, 0, 1) + ';transform:translateY(' + (1 - p) * -60 + 'px) scale(' + (0.92 + 0.08 * p) + ')">' +
+          '<div class="ic" style="background:linear-gradient(135deg,#7c5cff,#3ec2ff)"></div><div style="flex:1"><div class="t">Night Owls 🦉 <span>now</span></div>' +
+          '<div class="b"><b>Cubbie:</b> Quiz in 30 min: Backprop. Reply ready, or excused if you can\'t make it.</div></div></div>' : '') +
+        '<div class="lockbar"><i></i><i></i></div></div>';
+    },
+    boba: function (t, s) {
+      var d = DURS.boba, v = s.vo;
+      var h = kinetic(t, 'end of the month', [[v + d * 0.64, 'Last place'], [v + d * 0.73, 'buys the'], [v + d * 0.8, 'boba. 🧋', true]]);
+      var p = inAt(t, 0.25, 0.4);
+      h += '<div class="mini-card" style="opacity:' + p + ';transform:translateY(' + (1 - p) * 24 + 'px)"><div class="mc-head">👑 QUIZZARD OF THE MONTH: JAY</div>' +
+        '<div class="mc-row gold"><span>1 · Jay</span><b>309</b></div><div class="mc-row"><span>2 · Reya</span><b>292</b></div>' +
+        '<div class="mc-row"><span>3 · Manav</span><b>212</b></div><div class="mc-row last"><span>4 · Sam · treats, up to $25</span><b>101</b></div></div>';
+      return h;
+    },
+    end: function (t) {
+      var p = inAt(t, 0.1, 0.5), ang = t * 2.4;
+      var orbit = [0, 2.1, 4.2].map(function (o, i) {
+        var a = ang + o, r = 46;
+        return '<circle cx="' + (60 + Math.cos(a) * r) + '" cy="' + (60 + Math.sin(a) * r) + '" r="' + (i === 0 ? 6 : 4) + '" fill="' + (i === 0 ? '#a78bfa' : '#f5f5f7') + '"/>';
+      }).join('');
+      var logo = '<svg width="120" height="120" viewBox="0 0 120 120"><circle cx="60" cy="60" r="46" fill="none" stroke="#2c2c2e" stroke-width="1.5"/>' +
+        '<text x="60" y="76" text-anchor="middle" font-size="44" font-weight="900" fill="#f5f5f7" font-family="Inter">Q</text>' + orbit + '</svg>';
+      var pp = inAt(t, 1.0, 0.4);
+      return '<div class="end" style="opacity:' + p + ';transform:scale(' + (0.94 + 0.06 * p) + ')">' + logo + '<h1>Quizzard</h1><div class="for">the fun way to prep for quizzes</div>' +
+        '<div class="pill" style="opacity:' + pp + ';transform:translateY(' + (1 - pp) * 10 + 'px)">Add Cubbie to your group chat · type @test</div></div>' +
+        '<div class="foot">Built at DevHacks · ASU</div>';
+    }
+  };
+
+  window.DURATION = DURATION;
+  window.VO = STORY.map(function (s) { return [s.start + s.vo, s.key]; });
+  window.POPS = [STORY[2].start + 0.3].concat(STORY.reduce(function (a, s) {
+    return a.concat((s.msgs || []).filter(function (m) { return m[1] !== '@'; }).map(function (m) { return s.start + m[0]; }));
+  }, []));
+
+  window.seek = function (T) {
+    var h = '';
+    STORY.forEach(function (s, i) {
+      var a = s.start, b = s.start + s.len;
+      if (T < a - 0.001 || T > b + 0.18) return;
+      var o = Math.min(i === 0 ? 1 : clamp((T - a) / 0.16, 0, 1), clamp((b + 0.18 - T) / 0.18, 0, 1));
+      if (i === STORY.length - 1) o = Math.min(1, clamp((T - a) / 0.16, 0, 1));
+      h += '<div class="scene" style="opacity:' + o + '">' + R[s.key](T - a, s) + '</div>';
+    });
+    h += caption(T);
+    if (T < STORY[STORY.length - 1].start) h += '<div class="wm">' + IG + '<span>@ORBIT_CUBBIE</span></div>';
+    document.getElementById('stage').innerHTML = h;
+  };
+  window.seek(Number(new URLSearchParams(location.search).get('t') || 0));
+</script>
+</body>
+</html>

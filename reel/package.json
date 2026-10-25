@@ -1,0 +1,12 @@
+{
+  "name": "quizzard-reel",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "render": "node render.mjs full",
+    "preview": "node render.mjs preview"
+  },
+  "devDependencies": {
+    "playwright": "1.61.1"
+  }
+}

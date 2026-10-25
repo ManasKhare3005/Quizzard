@@ -69,3 +69,7 @@ Deploy `relay/` to Vercel with `MONGODB_URI` set (and optionally `MONGODB_DB`, d
 ## Privacy
 
 The relay stores display names, quiz topics, the questions Cubbie wrote, and answers with timestamps. No phone numbers, grades, messages or calendars. Tokens are stored as SHA-256 hashes. The scorecard link carries a separate view-only key in the URL fragment, which can read the scorecard and nothing else. Leaving a group deletes your points and answers; the last member leaving deletes the group.
+
+## Promo reel
+
+`reel/` holds the vertical promo reel source and the rendered `reel/quizzard-reel.mp4`. See `reel/README.md` to re-render or change the voice.
